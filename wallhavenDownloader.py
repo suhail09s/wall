@@ -87,7 +87,7 @@ threads = []
 searchfor='joker'.replace(' ','+')
 for run in range(1,numberofpages+1):
     #url='https://alpha.wallhaven.cc/search?q={}&categories=111&purity=110&sorting=random&order=desc&page={}'.format(searchfor,str(run))
-    url='https://alpha.wallhaven.cc/random?page={}'.format(str(run))
+    url='https://alpha.wallhaven.cc/random?page={}'.format(str(run)) #url for random page
     print(url)
     
     
