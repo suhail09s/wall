@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup as bs
 import threading
+import time
 
 def worker (single,i):
     #print('thread number {} started'.format(str(i)))
@@ -77,17 +78,17 @@ def downloader(link):
     except:
         r = requests.get(image, allow_redirects=True)
         open(name, 'wb').write(r.content)
-        print(name+' has been downloaded')
+        print(name+' has been downloaded\n')
         #print('failed to download '+name)
 ######Main script######
 
-numberofpages=10
+numberofpages=2
 linksTodownload=[]
 threads = []
 searchfor='joker'.replace(' ','+')
 for run in range(1,numberofpages+1):
     #url='https://alpha.wallhaven.cc/search?q={}&categories=111&purity=110&sorting=random&order=desc&page={}'.format(searchfor,str(run))
-    url='https://alpha.wallhaven.cc/random?page={}'.format(str(run)) #url for random page
+    url='https://alpha.wallhaven.cc/toplist?page={}'.format(str(run)) #url for random page
     print(url)
     
     
@@ -106,15 +107,17 @@ for run in range(1,numberofpages+1):
         linksTodownload.append(list)
         
 
-    #print(len(linksTodownload))
-   # imgDownloader(linksTodownload)
+    
+print('getting ready to download :'+str(len(linksTodownload))+' wallpapers')
+        # imgDownloader(linksTodownload)
 i=1
+print('downloading...')
 for single in linksTodownload:
         try:
             
             t = threading.Thread(target=worker,args=(single,i,))
             threads.append(t)
-            t.setDaemon(False)
+            t.setDaemon(True)
             t.start()
             
             i=i+1
@@ -123,6 +126,8 @@ for single in linksTodownload:
             print('invalid URL ')
 t.join()
 print('#'*25)
+time.sleep(1)
 
 print('done downloading page '+str(run))
 print(threading.enumerate())
+
