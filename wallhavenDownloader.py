@@ -2,7 +2,25 @@ import requests
 from bs4 import BeautifulSoup as bs
 import threading
 import time
-
+import datetime
+import conf
+import os
+#def confread():# reads a config file attached (conf.py) with the main .py for a castomizable downloader 
+search=str(conf.search).replace(' ','+') # replace space with plus to mkae the url
+cat=conf.cat
+purity=conf.purity
+sorting=conf.sorting
+order=conf.order
+toprange=conf.toprange
+ratio=str(conf.ratio).replace(',','%2C')
+resolution=str(conf.resolution).replace(',','%2C')
+numpages=int((conf.numpages))
+savedir=conf.savedir
+createfolder=str(conf.createfolder).upper
+print('all configrations has been read')
+gettime=datetime.datetime.today()
+foldertime='{:%d-%m_%H-%M-%S}'.format(gettime)
+print(gettime)
 def worker (single,i):
     #print('thread number {} started'.format(str(i)))
     page=pageget(single)
@@ -69,36 +87,37 @@ def downloader(link):
     #print(image)
     spname=image.split('/')
     name=spname[-1]
-    
+    newfolder=''# to avoid creating a new folder if createfolder in conf.py = False
+    if createfolder==str('True').upper:
+        newfolder='wallpapers-{}/'.format(foldertime)
+        if not os.path.exists(savedir+newfolder):
+            os.makedirs(savedir+newfolder)
     try:
-        open(name,'r')
-        print('checking :'+name)
+        open(savedir+newfolder+'/'+name,'r')
+        print(name+' is already exist.')
         
         
     except:
         r = requests.get(image, allow_redirects=True)
-        open(name, 'wb').write(r.content)
+        open(savedir+newfolder+name, 'wb').write(r.content)
         print(name+' has been downloaded\n')
         #print('failed to download '+name)
 ######Main script######
 
-numberofpages=2
+
 linksTodownload=[]
 threads = []
-searchfor='joker'.replace(' ','+')
-for run in range(1,numberofpages+1):
-    #url='https://alpha.wallhaven.cc/search?q={}&categories=111&purity=110&sorting=random&order=desc&page={}'.format(searchfor,str(run))
-    url='https://alpha.wallhaven.cc/toplist?page={}'.format(str(run)) #url for random page
-    print(url)
-    
-    
 
+for page in range(1,numpages+1):
+    
+    url='https://alpha.wallhaven.cc/search?q={}&categories={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
+            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))   
+    print(url)
     page=pageget(url)
     parsed=parser(page)
     #print(parsed)
     tagfound=tagfind(parsed,'catalog')
     #print(tagfound)
-    
     tolist=listlinks(tagfound)
     #print(tolist)
     #print(len(tolist))
@@ -128,6 +147,6 @@ t.join()
 print('#'*25)
 time.sleep(1)
 
-print('done downloading page '+str(run))
+print('done downloading page '+str(page))
 print(threading.enumerate())
 
