@@ -5,16 +5,18 @@ import time
 import datetime
 import conf
 import os
-#def confread():# reads a config file attached (conf.py) with the main .py for a castomizable downloader 
+
+# reads a config file attached (conf.py) with the main .py for a castomizable downloader 
 search=str(conf.search).replace(' ','+') # replace space with plus to mkae the url
 cat=conf.cat
 purity=conf.purity
 sorting=conf.sorting
 order=conf.order
 toprange=conf.toprange
-ratio=str(conf.ratio).replace(',','%2C')
-resolution=str(conf.resolution).replace(',','%2C')
+ratio=str(conf.ratio).replace(',','%2C')# to allow  multiple ratios
+resolution=str(conf.resolution).replace(',','%2C')# to allow multiple resolutions
 numpages=int((conf.numpages))
+startpage=int(conf.startpage)
 savedir=conf.savedir
 createfolder=str(conf.createfolder).upper
 print('all configrations has been read')
@@ -108,7 +110,7 @@ def downloader(link):
 linksTodownload=[]
 threads = []
 
-for page in range(1,numpages+1):
+for page in range(startpage,startpage+numpages):
     
     url='https://alpha.wallhaven.cc/search?q={}&categories={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
             .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))   
@@ -124,8 +126,9 @@ for page in range(1,numpages+1):
     
     for list in tolist:
         linksTodownload.append(list)
-        
-
+if len(linksTodownload)==0:
+    print('nothing to download')
+    exit(0)
     
 print('getting ready to download :'+str(len(linksTodownload))+' wallpapers')
         # imgDownloader(linksTodownload)
