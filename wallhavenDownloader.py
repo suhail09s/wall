@@ -5,35 +5,48 @@ import time
 import datetime
 import conf
 import os
+from queue import Queue
+q=Queue()
 
+############################
 # reads a config file attached (conf.py) with the main .py for a castomizable downloader 
-search=str(conf.search).replace(' ','+') # replace space with plus to mkae the url
-cat=conf.cat
-purity=conf.purity
-sorting=conf.sorting
-order=conf.order
-toprange=conf.toprange
-ratio=str(conf.ratio).replace(',','%2C')# to allow  multiple ratios
-resolution=str(conf.resolution).replace(',','%2C')# to allow multiple resolutions
-numpages=int((conf.numpages))
-startpage=int(conf.startpage)
-savedir=conf.savedir
-createfolder=str(conf.createfolder).upper
-print('all configrations has been read')
+try:
+    open("conf.py",'r')
+    search=str(conf.search).replace(' ','+') # replace space with plus to mkae the url
+    dthread=int (conf.threads)
+    cat=conf.cat
+    purity=conf.purity
+    sorting=conf.sorting    
+    order=conf.order
+    toprange=conf.toprange
+    ratio=str(conf.ratio).replace(',','%2C')# to allow  multiple ratios
+    resolution=str(conf.resolution).replace(',','%2C')# to allow multiple resolutions
+    numpages=int((conf.numpages))
+    startpage=int(conf.startpage)
+    savedir=conf.savedir
+    createfolder=str(conf.createfolder).upper
+    print('all configrations has been read')
+except:
+    print ('Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.')
+##############################
+
+
 gettime=datetime.datetime.today()
 foldertime='{:%d-%m_%H-%M-%S}'.format(gettime)
 print(gettime)
-def worker (single,i):
-    #print('thread number {} started'.format(str(i)))
+print_lock=threading.Lock()
+def threader():
+    while True:
+        single=q.get()
+        worker(single)
+        q.task_done()
+
+def worker (single):# this thread worker takes each link and try to parse the direct link of the wallpaper.
     page=pageget(single)
-    
     parsed=parser(page)
     tagfound=tagfind(parsed,'img')
-
-    #print('Thread-found image url,ready to Download')
     downloader(tagfound)
     
-    return exit()
 
 def pageget (url):
     
@@ -44,14 +57,16 @@ def pageget (url):
 def parser (page):
    soup=bs(page.text,'html.parser')
    return soup
+
 def tagfind(soup,mode):
     if mode=='catalog':
         tag1=soup.find (id='thumbs')
         tag2=tag1.findAll('a')
         return tag2
+
     if mode=='img':
         tag1=soup.find (id='wallpaper')
-       # print(tag1)
+   
         return tag1
     
 def listlinks (tags):
@@ -67,89 +82,75 @@ def listlinks (tags):
             pass
         
     return links
-def imgDownloader(links):
-    url = links
-    for single in links:
-        spname=single.split('/')
-        name=spname[-1]
-        if str.isdigit(name):
-            imgUrl='https://wallpapers.wallhaven.cc/wallpapers/full/wallhaven-'+name+'.jpg'
-            try:
-                 
-                r = requests.get(imgUrl, allow_redirects=True)
-                open(name+'.jpg', 'wb').write(r.content)
-                print(name+'.jpg has been downloaded')
-            except:
-                print('failed to download'+name)
-    return None
+
 
 def downloader(link):
     image=link.get('src')
-    image='https:'+image
-    #print(image)
+    image='https:'+image 
+    
     spname=image.split('/')
     name=spname[-1]
     newfolder=''# to avoid creating a new folder if createfolder in conf.py = False
     if createfolder==str('True').upper:
         newfolder='wallpapers-{}/'.format(foldertime)
-        if not os.path.exists(savedir+newfolder):
-            os.makedirs(savedir+newfolder)
+    if not os.path.exists(savedir+newfolder):
+        os.makedirs(savedir+newfolder)
     try:
-        open(savedir+newfolder+'/'+name,'r')
+        open(savedir+newfolder+'/'+name,'r') # the script will try to check if the wallpaper is already exist. 
         print(name+' is already exist.')
         
         
     except:
         r = requests.get(image, allow_redirects=True)
-        open(savedir+newfolder+name, 'wb').write(r.content)
-        print(name+' has been downloaded\n')
-        #print('failed to download '+name)
-######Main script######
+        open(savedir+newfolder+name, 'wb').write(r.content) # saving the wallpaper.
+        print(name+' has been downloaded')
+        
+                              ##############################  Main script  ####################################
 
 
-linksTodownload=[]
-threads = []
+linksTodownload=[] # a definition of a simple list of all the wallpapers that are planned for downloading (empty at this point).
+
 
 for page in range(startpage,startpage+numpages):
     
     url='https://alpha.wallhaven.cc/search?q={}&categories={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
-            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))   
+            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link .
     print(url)
     page=pageget(url)
     parsed=parser(page)
-    #print(parsed)
     tagfound=tagfind(parsed,'catalog')
-    #print(tagfound)
     tolist=listlinks(tagfound)
-    #print(tolist)
-    #print(len(tolist))
+
     
-    for list in tolist:
-        linksTodownload.append(list)
-if len(linksTodownload)==0:
+    for link in tolist: # simply making a list of all the links to are planned for downloading.
+        linksTodownload.append(link)
+if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
     print('nothing to download')
     exit(0)
     
 print('getting ready to download :'+str(len(linksTodownload))+' wallpapers')
-        # imgDownloader(linksTodownload)
-i=1
+       
+
 print('downloading...')
-for single in linksTodownload:
+start=time.time()
+for single in range(dthread):# Starting a thread that processes each link.
         try:
             
-            t = threading.Thread(target=worker,args=(single,i,))
-            threads.append(t)
-            t.setDaemon(True)
-            t.start()
-            
-            i=i+1
+             t=threading.Thread(target=threader)
+             t.daemon=True
+             t.start()
+             
             
         except:
             print('invalid URL ')
-t.join()
-print('#'*25)
-time.sleep(1)
+for link in linksTodownload: #Queue manger/builder - adds all links that are planned for downloading in a queue.
+    
+    q.put(link)
 
-print('done downloading page '+str(page))
-print(threading.enumerate())
+print('#'*25)
+
+q.join()
+print('\n \n \n ######## Done downloading, Enjoy :D ########')
+print ("Downloading time was :",time.time()-start)
+
 
