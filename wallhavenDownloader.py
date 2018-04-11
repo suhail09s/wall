@@ -28,10 +28,12 @@ try:
     numpages=int((conf.numpages))
     startpage=int(conf.startpage)
     savedir=conf.savedir
+    allowdublicates=conf.allowdublicates
     createfolder=str(conf.createfolder).upper
     print('all configrations has been read')
 except:
     print ('Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.')
+    exit(1)
 ##############################
 
 
@@ -99,7 +101,7 @@ def listlinks (tags):
         splink=link.split('/')
         
         if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
-            if any(splink[-1] in l for l in downloadedwalls):
+            if (any(splink[-1] in l for l in downloadedwalls)) and allowdublicates=='True':
                print ('found dublicate')
             else:
                 links.append(link)
@@ -143,7 +145,7 @@ downloadedwalls=[]
 try:
     with open('list.of.downloaded.wall.txt', 'r') as f:
         downloadedwalls = [str(str(str(line.strip()).replace('.jpg',"")).replace('.png','')).replace('wallhaven-','') for line in f]
-        print(downloadedwalls)
+       
         print('Downloaded wallpapers list has been read.')
 except:
     pass
@@ -164,7 +166,7 @@ with requests.Session() as c:
             .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link .
      elif mode=='favorites':
          url='https://alpha.wallhaven.cc/favorites?purity={}&page={}'.format(purity,str(page))
-     print(url)
+     print('reading page number: '+str(page))
      page=pageget(url)
      parsed=parser(page)
      tagfound=tagfind(parsed,'catalog')
