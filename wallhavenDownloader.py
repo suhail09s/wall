@@ -6,13 +6,15 @@ import datetime
 import conf
 import os
 from queue import Queue
+import subprocess
+
 q=Queue()
 
 ############################
 # reads a config file attached (conf.py) with the main .py for a castomizable downloader 
 
 try:
-    open("conf.py",'r')
+    co=open("conf.py",'r')
     search=str(conf.search).replace(' ','+') # replace space with plus to mkae the url
     dthread=int (conf.threads)
     us=conf.user
@@ -31,6 +33,8 @@ try:
     allowdublicates=conf.allowdublicates
     createfolder=str(conf.createfolder).upper
     print('all configrations has been read')
+    co.close()
+    
 except:
     print ('Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.')
     exit(1)
@@ -96,19 +100,20 @@ def tagfind(soup,mode):
 
 def listlinks (tags):
     links=[]
+    dub=0
     for tag in tags:
         link=tag.get('href')
         splink=link.split('/')
         
         if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
             if (any(splink[-1] in l for l in downloadedwalls)) and allowdublicates=='True':
-               print ('found dublicate')
+               dub=dub+1
             else:
                 links.append(link)
                 print('added '+link)
         else:
             pass
-        
+    print('found {} dublicated wallpapers'.format(str(dub)))
     return links
 
 
@@ -121,7 +126,7 @@ def downloader(link):
     spname=image.split('/')
     name=spname[-1]
     
-
+    global newfolder
     newfolder=''# to avoid creating a new folder if createfolder in conf.py = False
     if createfolder==str('True').upper:
         newfolder='wallpapers-{}/'.format(foldertime)
@@ -182,7 +187,7 @@ with requests.Session() as c:
                 print('nothing to download')
        
     
-    print('getting ready to download :'+str(len(linksTodownload))+' wallpapers')
+    print('getting ready to download :'+str(len(linksTodownload))+' new wallpapers')
    
 
     print('downloading...')
@@ -206,5 +211,28 @@ with requests.Session() as c:
     q.join()
     print('\n \n \n ######## Done downloading, Enjoy :D ########')
     print ("Downloading time was :",time.time()-start)
-
+    workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
+    
+    try: # open savedir when path is relative.
+        if createfolder==str('True').upper:
+            print (str(workingpath)+savedir+str(newfolder).replace('/','\\'))
+            path='explorer "{}"'.format(str(savedir).replace('/','\\')+str(newfolder).replace('/','\\'))
+            subprocess.Popen(path)
+        else:
+            print (str(workingpath))
+            path='explorer "{}"'.format(str(savedir).replace('/','\\'))
+            subprocess.Popen(path)
+        
+    except:       # open savedir when path is absolute.
+        try:
+            if createfolder==str('True').upper:
+                print (workingpath+str(newfolder).replace('/','\\'))
+                path='explorer "{}"'.format(workingpath+str(newfolder).replace('/','\\'))
+                subprocess.Popen(path) 
+            else:
+                print (workingpath)
+                path='explorer "{}"'.format(workingpath)
+                subprocess.Popen(path)
+        except:
+            print ('error opening folder,sorry')
 
