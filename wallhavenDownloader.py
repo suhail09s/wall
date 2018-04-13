@@ -30,9 +30,12 @@ try:
     numpages=int((conf.numpages))
     startpage=int(conf.startpage)
     savedir=conf.savedir
-    allowdublicates=conf.allowdublicates
+    allowduplicates=conf.allowduplicates
     createfolder=str(conf.createfolder).upper
+    openfolderafter=conf.openfolderafter
     print('all configrations has been read')
+    print('Downloading all wallpapers about ({}) based on {} sorting from page number {} to page number {} \nthat are {} old to folder under {} with {} thread/s'\
+                                                    .format(search,sorting,startpage,(startpage+numpages-1),toprange,savedir,dthread))
     co.close()
     
 except:
@@ -58,7 +61,7 @@ def worker (single):# this thread worker takes each link and try to parse the di
     downloader(tagfound)
     
 def login(uname,pas):
-        
+        print('Logging in....')
         url_login='https://alpha.wallhaven.cc/auth/login'
         getcsrf=c.get(url_login)
         parsedcsrf =parser(getcsrf)
@@ -69,7 +72,7 @@ def login(uname,pas):
         if (checklogin.find('Welcome back')) == -1: # check if logged in or not, by simply reading the welcome msg.
             print('Failed to login,Check username and password. \nAll features that require login will be disabled.\n')
         else:
-            print ('logged in')
+            print ('logged in :D')
         
         return csrf
 def pageget (url):
@@ -83,37 +86,40 @@ def parser (page):
    return soup
 
 def tagfind(soup,mode):
-    if mode=='catalog':
-        tag1=soup.find (id='thumbs')
-        tag2=tag1.findAll('a')
-        return tag2
+    try:
+        if mode=='catalog':
+            tag1=soup.find (id='thumbs')
+            tag2=tag1.findAll('a')
+            return tag2
 
-    if mode=='img':
-        tag1=soup.find (id='wallpaper')
+        if mode=='img':
+            tag1=soup.find (id='wallpaper')
    
-        return tag1
-    if mode=='csrf':
-        tag1=soup.find (id='login')
-        tag2=tag1.findAll ('input')
-        csrftag=str(tag2).split('"')[5]
-        return csrftag
+            return tag1
+        if mode=='csrf':
+            tag1=soup.find (id='login')
+            tag2=tag1.findAll ('input')
+            csrftag=str(tag2).split('"')[5]
+            return csrftag
+    except:
+        print ('error finding tag,empty page')
 
 def listlinks (tags):
     links=[]
-    dub=0
+    dup=0
     for tag in tags:
         link=tag.get('href')
         splink=link.split('/')
         
         if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
-            if (any(splink[-1] in l for l in downloadedwalls)) and allowdublicates=='True':
-               dub=dub+1
+            if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='True':
+               dup=dup+1
             else:
                 links.append(link)
                 print('added '+link)
         else:
             pass
-    print('found {} dublicated wallpapers'.format(str(dub)))
+    print('found {} duplicated wallpapers'.format(str(dup)))
     return links
 
 
@@ -144,7 +150,32 @@ def downloader(link):
         with open("list.of.downloaded.wall.txt", "a") as myfile:
             myfile.write(name+'\n') 
         
-                              ##############################  Main script  ####################################
+def openfolder():
+
+    try: # open savedir when path is relative.
+        if createfolder==str('True').upper:
+            print (str(workingpath)+savedir+str(newfolder).replace('/','\\'))
+            path='explorer "{}"'.format(str(savedir).replace('/','\\')+str(newfolder).replace('/','\\'))
+            subprocess.Popen(path)
+        else:
+            print (str(workingpath))
+            path='explorer "{}"'.format(str(savedir).replace('/','\\'))
+            subprocess.Popen(path)
+        
+    except:       # open savedir when path is absolute.
+        try:
+            if createfolder==str('True').upper:
+                print (workingpath+str(newfolder).replace('/','\\'))
+                path='explorer "{}"'.format(workingpath+str(newfolder).replace('/','\\'))
+                subprocess.Popen(path) 
+            else:
+                print (workingpath)
+                path='explorer "{}"'.format(workingpath)
+                subprocess.Popen(path)
+        except:
+            print ('Error opening folder or none was downloaded,sorry')
+
+                            ##############################  Main script  ####################################
 
 downloadedwalls=[]
 try:
@@ -174,9 +205,11 @@ with requests.Session() as c:
      print('reading page number: '+str(page))
      page=pageget(url)
      parsed=parser(page)
-     tagfound=tagfind(parsed,'catalog')
-     tolist=listlinks(tagfound)
-
+     try:
+        tagfound=tagfind(parsed,'catalog')
+        tolist=listlinks(tagfound)
+     except:
+        print('Error finding wallpapers,it could be an empty page.')
     
      for link in tolist: # simply making a list of all the links to are planned for downloading.
          if any(link in l for l in linksTodownload):
@@ -212,27 +245,7 @@ with requests.Session() as c:
     print('\n \n \n ######## Done downloading, Enjoy :D ########')
     print ("Downloading time was :",time.time()-start)
     workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
+    if openfolderafter=='True':
+        openfolder()
     
-    try: # open savedir when path is relative.
-        if createfolder==str('True').upper:
-            print (str(workingpath)+savedir+str(newfolder).replace('/','\\'))
-            path='explorer "{}"'.format(str(savedir).replace('/','\\')+str(newfolder).replace('/','\\'))
-            subprocess.Popen(path)
-        else:
-            print (str(workingpath))
-            path='explorer "{}"'.format(str(savedir).replace('/','\\'))
-            subprocess.Popen(path)
-        
-    except:       # open savedir when path is absolute.
-        try:
-            if createfolder==str('True').upper:
-                print (workingpath+str(newfolder).replace('/','\\'))
-                path='explorer "{}"'.format(workingpath+str(newfolder).replace('/','\\'))
-                subprocess.Popen(path) 
-            else:
-                print (workingpath)
-                path='explorer "{}"'.format(workingpath)
-                subprocess.Popen(path)
-        except:
-            print ('error opening folder,sorry')
 
