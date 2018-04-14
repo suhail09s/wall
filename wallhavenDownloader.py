@@ -7,9 +7,17 @@ import conf
 import os
 from queue import Queue
 import subprocess
+import random
+
+from colorama import init
+from termcolor import colored
+
+# use Colorama to make Termcolor work on Windows too
+init()
+
+# then use Termcolor for all colored text output
 
 q=Queue()
-
 ############################
 # reads a config file attached (conf.py) with the main .py for a castomizable downloader 
 
@@ -33,17 +41,18 @@ try:
     allowduplicates=conf.allowduplicates
     createfolder=str(conf.createfolder).upper
     openfolderafter=conf.openfolderafter
+    favTag=conf.favTag
     print('all configrations has been read')
     print('Downloading all wallpapers about ({}) based on {} sorting from page number {} to page number {} \nthat are {} old to folder under {} with {} thread/s'\
                                                     .format(search,sorting,startpage,(startpage+numpages-1),toprange,savedir,dthread))
     co.close()
     
 except:
-    print ('Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.')
+    print ('****Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.****')
     exit(1)
 ##############################
 
-
+downloadedwalls=[]
 gettime=datetime.datetime.today()
 foldertime='{:%d-%m_%H-%M-%S}'.format(gettime)
 print(gettime)
@@ -65,12 +74,13 @@ def login(uname,pas):
         url_login='https://alpha.wallhaven.cc/auth/login'
         getcsrf=c.get(url_login)
         parsedcsrf =parser(getcsrf)
+        global csrf
         csrf=tagfind(parsedcsrf,'csrf')
         login_data=dict(csrfmiddlewaretoken=csrf, username=us,password=ps)
         c.post(url_login,data=login_data)
         checklogin=str(c.get('https://alpha.wallhaven.cc').content)
         if (checklogin.find('Welcome back')) == -1: # check if logged in or not, by simply reading the welcome msg.
-            print('Failed to login,Check username and password. \nAll features that require login will be disabled.\n')
+            print('****Failed to login,Check username and password. ****\n****All features that require login will be disabled.**** \n')
         else:
             print ('logged in :D')
         
@@ -107,19 +117,23 @@ def tagfind(soup,mode):
 def listlinks (tags):
     links=[]
     dup=0
+
     for tag in tags:
         link=tag.get('href')
         splink=link.split('/')
-        
         if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
-            if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='True':
+            if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='False':
                dup=dup+1
+            elif (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='True':
+                dup=dup+1
+                links.append(link)
+                print('added '+link)
             else:
                 links.append(link)
                 print('added '+link)
         else:
             pass
-    print('found {} duplicated wallpapers'.format(str(dup)))
+    print('found {} duplicated/already existed wallpapers'.format(str(dup)))
     return links
 
 
@@ -147,10 +161,10 @@ def downloader(link):
         r = requests.get(image, allow_redirects=True)
         open(savedir+newfolder+name, 'wb').write(r.content) # saving the wallpaper.
         print(name+' has been downloaded')
-        with open("list.of.downloaded.wall.txt", "a") as myfile:
+        with open("list.of.downloaded.wall.txt", "a") as myfile: # add the name of the downloaded wallpapers to a txt file to check for duplicates.
             myfile.write(name+'\n') 
         
-def openfolder():
+def openfolder(): # function to open the directory after done downloading, it's optional can be turned off from conf.py.
 
     try: # open savedir when path is relative.
         if createfolder==str('True').upper:
@@ -175,48 +189,57 @@ def openfolder():
         except:
             print ('Error opening folder or none was downloaded,sorry')
 
+def readDownloadedWalls():
+    global downloadedwalls
+    try:
+        with open('list.of.downloaded.wall.txt', 'r') as f:
+         downloadedwalls = [str(str(str(line.strip()).replace('.jpg',"")).replace('.png','')).replace('wallhaven-','') for line in f]
+       
+        print('Downloaded wallpapers list has been read.',len(downloadedwalls))
+    except:
+        pass
                             ##############################  Main script  ####################################
 
-downloadedwalls=[]
-try:
-    with open('list.of.downloaded.wall.txt', 'r') as f:
-        downloadedwalls = [str(str(str(line.strip()).replace('.jpg',"")).replace('.png','')).replace('wallhaven-','') for line in f]
-       
-        print('Downloaded wallpapers list has been read.')
-except:
-    pass
+
+
+readDownloadedWalls()
+
 linksTodownload=[] # a definition of a simple list of all the wallpapers that are planned for downloading (empty at this point).
 ss=0
-with requests.Session() as c:
-    if dthread>118:
+with requests.Session() as c: # running the the whole script under a session to avoid logging in everytime and access all pages quicker.
+    
+    if dthread>118: # threading is buggy when using more than 118 threads, this will force the script to not exceed 117.
         dthread=117
         print('excedded the maximum number of threads allowed,117')
-    if ss<1:
-        login(1,1)
+    if ss<1: #to avoid multiple logging in
+        login(1,1)# 1 is just a placeholder, the function will get username and password from conf.py
+        
     ss=+1
-    for page in range(startpage,startpage+numpages):
-     if mode=='subscription':
-        url='https://alpha.wallhaven.cc/subscription?purity=111&page={}'.format(str(page))
-     elif mode=='search':
-        url='https://alpha.wallhaven.cc/search?q={}&={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
-            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link .
-     elif mode=='favorites':
-         url='https://alpha.wallhaven.cc/favorites?purity={}&page={}'.format(purity,str(page))
-     print('reading page number: '+str(page))
-     page=pageget(url)
-     parsed=parser(page)
-     try:
+    for page in range(startpage,startpage+numpages): # looping through the selected pages.
+        if mode=='subscription':
+            url='https://alpha.wallhaven.cc/subscription?purity=111&page={}'.format(str(page)) #constructing the link for subscription mode.
+        elif mode=='search':
+            url='https://alpha.wallhaven.cc/search?q={}&={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
+            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link for searching mode.
+        elif mode=='favorites':
+             url='https://alpha.wallhaven.cc/favorites/{}?purity={}&page={}'.format(favTag,purity,str(page))  #constructing the link for favorites mode.
+        print('reading page number: '+str(page))
+        page=pageget(url)
+        parsed=parser(page)
+
         tagfound=tagfind(parsed,'catalog')
         tolist=listlinks(tagfound)
-     except:
-        print('Error finding wallpapers,it could be an empty page.')
+
+        #print('Error finding wallpapers,it could be an empty page.')
     
-     for link in tolist: # simply making a list of all the links to are planned for downloading.
-         if any(link in l for l in linksTodownload):
-             continue
-         else:
-            linksTodownload.append(link)
-     if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
+        for link in tolist: # simply making a list of all the links to are planned for downloading.
+             if any(link in l for l in linksTodownload):
+                 continue
+             else:
+                linksTodownload.append(link)
+    
+    
+        if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
                 print('nothing to download')
        
     
@@ -243,7 +266,7 @@ with requests.Session() as c:
 
     q.join()
     print('\n \n \n ######## Done downloading, Enjoy :D ########')
-    print ("Downloading time was :",time.time()-start)
+    print ("Downloading time was :",time.time()-start) # calculate the time spent downloading wallpapers.
     workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
     if openfolderafter=='True':
         openfolder()
