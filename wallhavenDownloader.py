@@ -117,25 +117,28 @@ def tagfind(soup,mode):
 def listlinks (tags):
     links=[]
     dup=0
-
-    for tag in tags:
-        link=tag.get('href')
-        splink=link.split('/')
-        if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
-            if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='False':
-               dup=dup+1
-            elif (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='True':
-                dup=dup+1
-                links.append(link)
-                print('added '+link)
+    
+    try:
+        for tag in tags:
+            link=tag.get('href')
+            splink=link.split('/')
+            if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
+                if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='False':
+                    dup=dup+1
+                elif (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='True':
+                    dup=dup+1
+                    links.append(link)
+                    print('added '+link)
+                else:
+                    links.append(link)
+                    print('added '+link)
             else:
-                links.append(link)
-                print('added '+link)
-        else:
-            pass
-    print('found {} duplicated/already existed wallpapers'.format(str(dup)))
-    return links
-
+                pass
+        print('found {} duplicated/already existed wallpapers'.format(str(dup)))
+        return links
+    except:
+        links=[]
+        return links
 
 def downloader(link):
     image=''
