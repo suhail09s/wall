@@ -9,13 +9,11 @@ from queue import Queue
 import subprocess
 import random
 
-from colorama import init
-from termcolor import colored
 
-# use Colorama to make Termcolor work on Windows too
-init()
 
-# then use Termcolor for all colored text output
+
+
+
 
 q=Queue()
 ############################
@@ -51,7 +49,7 @@ except:
     print ('****Failed to read config file conf.py, please check conf.py does exist and all variables has valid values.****')
     exit(1)
 ##############################
-
+workingpath = (os.path.join(os.getcwd(),savedir))
 downloadedwalls=[]
 gettime=datetime.datetime.today()
 foldertime='{:%d-%m_%H-%M-%S}'.format(gettime)
@@ -141,8 +139,9 @@ def listlinks (tags):
         return links
 
 def downloader(link):
+    global downloadedwalls 
     image=''
-    
+ 
     image=link.get('src')
     image='https:'+image 
     
@@ -152,45 +151,60 @@ def downloader(link):
     global newfolder
     newfolder=''# to avoid creating a new folder if createfolder in conf.py = False
     if createfolder==str('True').upper:
-        newfolder='wallpapers-{}/'.format(foldertime)
-    if not os.path.exists(savedir+newfolder):
-        os.makedirs(savedir+newfolder)
+        newfolder='wallpapers-{}'.format(foldertime)
+    if not os.path.exists(os.path.join(savedir,newfolder)):
+        
+        os.makedirs(os.path.join(savedir,newfolder))
     try:
-        open(savedir+newfolder+'/'+name,'r') # the script will try to check if the wallpaper is already exist. 
-        print(name+' is already exist.')
-        exit(1)
+        if newfolder=='':
+            
+            open(os.path.join(savedir,name),'r') # the script will try to check if the wallpaper is already exist. 
+            print(name+' is already exist.')
+           
+            return 1
+        elif newfolder!='':
+           
+            open(os.path.join(savedir,newfolder,name),'r') # the script will try to check if the wallpaper is already exist. 
+            print(name+' is already exist.1')
+            
+            return 1
         
     except:
+   
         r = requests.get(image, allow_redirects=True)
-        open(savedir+newfolder+name, 'wb').write(r.content) # saving the wallpaper.
+        open(os.path.join(savedir,newfolder,name), 'wb').write(r.content) # saving the wallpaper.
         print(name+' has been downloaded')
-        with open("list.of.downloaded.wall.txt", "a") as myfile: # add the name of the downloaded wallpapers to a txt file to check for duplicates.
-            myfile.write(name+'\n') 
+        if downloadedwalls.count(((name.replace('wallhaven-','')).split('.')[0]))>0:
+            print ('downloaded a dublicated wallpaper')
+            return 1
+        else: 
+            with open("list.of.downloaded.wall.txt", "a") as myfile: # add the name of the downloaded wallpapers to a txt file to check for duplicates.
+                myfile.write(name+'\n') 
         
 def openfolder(): # function to open the directory after done downloading, it's optional can be turned off from conf.py.
 
     try: # open savedir when path is relative.
-        if createfolder==str('True').upper:
-            print (str(workingpath)+savedir+str(newfolder).replace('/','\\'))
-            path='explorer "{}"'.format(str(savedir).replace('/','\\')+str(newfolder).replace('/','\\'))
-            subprocess.Popen(path)
-        else:
-            print (str(workingpath))
-            path='explorer "{}"'.format(str(savedir).replace('/','\\'))
-            subprocess.Popen(path)
-        
-    except:       # open savedir when path is absolute.
-        try:
-            if createfolder==str('True').upper:
-                print (workingpath+str(newfolder).replace('/','\\'))
-                path='explorer "{}"'.format(workingpath+str(newfolder).replace('/','\\'))
-                subprocess.Popen(path) 
-            else:
-                print (workingpath)
+        if  not savedir[1]==':' and createfolder==str('True').upper:
+            
+                print (os.path.join(workingpath,newfolder))
+                path='explorer "{}"'.format(os.path.join(workingpath,newfolder))
+                subprocess.Popen(path)
+        elif not savedir[1]==':' and createfolder==str('False').upper:
+                print (str(workingpath))
                 path='explorer "{}"'.format(workingpath)
                 subprocess.Popen(path)
-        except:
-            print ('Error opening folder or none was downloaded,sorry')
+               # open savedir when path is absolute.
+        elif createfolder==str('True').upper and savedir[1]==':':
+                print (os.path.join(savedir,newfolder))
+                path='explorer "{}"'.format(os.path.join(savedir,newfolder))
+                subprocess.Popen(path)
+        elif createfolder==str('False').upper and savedir[1]==':':
+                print (savedir)
+                path='explorer "{}"'.format(savedir)
+                subprocess.Popen(path)
+ 
+    except:
+        print ('Error opening folder or none was downloaded,sorry')
 
 def readDownloadedWalls():
     global downloadedwalls
@@ -199,22 +213,23 @@ def readDownloadedWalls():
          downloadedwalls = [str(str(str(line.strip()).replace('.jpg',"")).replace('.png','')).replace('wallhaven-','') for line in f]
        
         print('Downloaded wallpapers list has been read.',len(downloadedwalls))
+        return downloadedwalls
     except:
         pass
                             ##############################  Main script  ####################################
 
 
 
-readDownloadedWalls()
+downloadedwalls=readDownloadedWalls()
 
 linksTodownload=[] # a definition of a simple list of all the wallpapers that are planned for downloading (empty at this point).
-ss=0
-with requests.Session() as c: # running the the whole script under a session to avoid logging in everytime and access all pages quicker.
+ss=0 # simply a counter to only allow the script to try to log in once.
+with requests.Session() as c: # running the the whole script under a session to avoid logging in every time and access all pages quicker.
     
     if dthread>118: # threading is buggy when using more than 118 threads, this will force the script to not exceed 117.
         dthread=117
         print('excedded the maximum number of threads allowed,117')
-    if ss<1: #to avoid multiple logging in
+    if ss<1 and us!='': #to avoid multiple logging in
         login(1,1)# 1 is just a placeholder, the function will get username and password from conf.py
         
     ss=+1
@@ -227,6 +242,7 @@ with requests.Session() as c: # running the the whole script under a session to 
         elif mode=='favorites':
              url='https://alpha.wallhaven.cc/favorites/{}?purity={}&page={}'.format(favTag,purity,str(page))  #constructing the link for favorites mode.
         print('reading page number: '+str(page))
+        
         page=pageget(url)
         parsed=parser(page)
 
@@ -235,17 +251,22 @@ with requests.Session() as c: # running the the whole script under a session to 
 
         #print('Error finding wallpapers,it could be an empty page.')
     
-        for link in tolist: # simply making a list of all the links to are planned for downloading.
+        for link in tolist: # simply making a list of all the links that are planned for downloading.
              if any(link in l for l in linksTodownload):
                  continue
              else:
                 linksTodownload.append(link)
     
     
-        if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
-                print('nothing to download')
+        if len(linksTodownload)==0: # in case there aren't any wallpaper to be downloaded(empty page for example).
+                print('nothing to download from last page.')
+                
+                
        
     
+    if (len(linksTodownload))==0:
+        print('*****...no new wallpapers were found, Exiting...*****')
+        exit()
     print('getting ready to download :'+str(len(linksTodownload))+' new wallpapers')
    
 
@@ -269,8 +290,8 @@ with requests.Session() as c: # running the the whole script under a session to 
 
     q.join()
     print('\n \n \n ######## Done downloading, Enjoy :D ########')
-    print ("Downloading time was :",time.time()-start) # calculate the time spent downloading wallpapers.
-    workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
+    print ("Downloading time was : {} seconds".format(int (time.time()-start))) # calculate the time spent downloading wallpapers.
+    
     if openfolderafter=='True':
         openfolder()
     
