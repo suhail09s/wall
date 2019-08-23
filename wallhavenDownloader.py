@@ -8,7 +8,6 @@ import os
 from queue import Queue
 import subprocess
 import random
-
 from colorama import init
 from termcolor import colored
 
@@ -20,6 +19,7 @@ init()
 q=Queue()
 ############################
 # reads a config file attached (conf.py) with the main .py for a castomizable downloader 
+
 
 try:
     co=open("conf.py",'r')
@@ -69,16 +69,16 @@ def worker (single):# this thread worker takes each link and try to parse the di
     tagfound=tagfind(parsed,'img')
     downloader(tagfound)
     
-def login(uname,pas):
+def login(uname=None,pas=None):
         print('Logging in....')
-        url_login='https://alpha.wallhaven.cc/auth/login'
+        url_login='https://wallhaven.cc/auth/login'
         getcsrf=c.get(url_login)
         parsedcsrf =parser(getcsrf)
         global csrf
         csrf=tagfind(parsedcsrf,'csrf')
         login_data=dict(csrfmiddlewaretoken=csrf, username=us,password=ps)
         c.post(url_login,data=login_data)
-        checklogin=str(c.get('https://alpha.wallhaven.cc').content)
+        checklogin=str(c.get('https://wallhaven.cc').content)
         if (checklogin.find('Welcome back')) == -1: # check if logged in or not, by simply reading the welcome msg.
             print('****Failed to login,Check username and password. ****\n****All features that require login will be disabled.**** \n')
         else:
@@ -99,12 +99,14 @@ def tagfind(soup,mode):
     try:
         if mode=='catalog':
             tag1=soup.find (id='thumbs')
-            tag2=tag1.findAll('a')
+            
+            tag2=tag1.findAll('li')
+            print("printing catalog "+tag1)
             return tag2
 
         if mode=='img':
             tag1=soup.find (id='wallpaper')
-   
+            print("printing tag "+tag1)
             return tag1
         if mode=='csrf':
             tag1=soup.find (id='login')
@@ -121,6 +123,7 @@ def listlinks (tags):
     try:
         for tag in tags:
             link=tag.get('href')
+            print('link='+link)
             splink=link.split('/')
             if (str.isdigit(splink[-1])) and ((splink)[-2] != 'quickFavForm'):
                 if (any(splink[-1] in l for l in downloadedwalls)) and allowduplicates=='False':
@@ -142,13 +145,14 @@ def listlinks (tags):
 
 def downloader(link):
     image=''
-    
-    image=link.get('src')
-    image='https:'+image 
-    
-    spname=image.split('/')
-    name=spname[-1]
-    
+    try:
+        image=link.get('src')
+        image='https:'+'w/'+image 
+        spname=image.split('/')
+        print(spname)
+        name=spname[-1]
+    except:
+        raise Exception(f'failed to get src:{link} ')
     global newfolder
     newfolder=''# to avoid creating a new folder if createfolder in conf.py = False
     if createfolder==str('True').upper:
@@ -201,8 +205,10 @@ def readDownloadedWalls():
         print('Downloaded wallpapers list has been read.',len(downloadedwalls))
     except:
         pass
-                            ##############################  Main script  ####################################
 
+
+							##############################  Main script  ####################################
+#global dthread
 
 
 readDownloadedWalls()
@@ -210,68 +216,70 @@ readDownloadedWalls()
 linksTodownload=[] # a definition of a simple list of all the wallpapers that are planned for downloading (empty at this point).
 ss=0
 with requests.Session() as c: # running the the whole script under a session to avoid logging in everytime and access all pages quicker.
-    
-    if dthread>118: # threading is buggy when using more than 118 threads, this will force the script to not exceed 117.
-        dthread=117
-        print('excedded the maximum number of threads allowed,117')
-    if ss<1: #to avoid multiple logging in
-        login(1,1)# 1 is just a placeholder, the function will get username and password from conf.py
-        
-    ss=+1
-    for page in range(startpage,startpage+numpages): # looping through the selected pages.
-        if mode=='subscription':
-            url='https://alpha.wallhaven.cc/subscription?purity=111&page={}'.format(str(page)) #constructing the link for subscription mode.
-        elif mode=='search':
-            url='https://alpha.wallhaven.cc/search?q={}&={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
-            .format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link for searching mode.
-        elif mode=='favorites':
-             url='https://alpha.wallhaven.cc/favorites/{}?purity={}&page={}'.format(favTag,purity,str(page))  #constructing the link for favorites mode.
-        print('reading page number: '+str(page))
-        page=pageget(url)
-        parsed=parser(page)
 
-        tagfound=tagfind(parsed,'catalog')
-        tolist=listlinks(tagfound)
+	if dthread>118: # threading is buggy when using more than 118 threads, this will force the script to not exceed 117.
+		dthread=117
+		print('excedded the maximum number of threads allowed,117')
+	if ss<1: #to avoid multiple logging in
+		login()#  the function will get username and password from conf.py
+	
+	ss=+1
+	for page in range(startpage,startpage+numpages): # looping through the selected pages.
+		if mode=='subscription':
+			url='https://wallhaven.cc/subscription?purity=111&page={}'.format(str(page)) #constructing the link for subscription mode.
+		elif mode=='search':
+			url='https://wallhaven.cc/search?q={}&={}&purity={}&resolutions={}&ratios={}&topRange={}&sorting={}&order={}&page={}'\
+			.format(search,cat,purity,resolution,ratio,toprange,sorting,order,str(page))  #constructing the link for searching mode.
+		elif mode=='favorites':url='https://wallhaven.cc/favorites/{}?purity={}&page={}'.format(favTag,purity,str(page))  #constructing the link for favorites mode.
+		print('reading page number: '+str(page))
+		print('url='+url)
+		page=pageget(url)
+		print('got page')
+		parsed=parser(page)
 
-        #print('Error finding wallpapers,it could be an empty page.')
-    
-        for link in tolist: # simply making a list of all the links to are planned for downloading.
-             if any(link in l for l in linksTodownload):
-                 continue
-             else:
-                linksTodownload.append(link)
-    
-    
-        if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
-                print('nothing to download')
-       
-    
-    print('getting ready to download :'+str(len(linksTodownload))+' new wallpapers')
-   
+		tagfound=tagfind(parsed,'catalog')
+		print('found catalog tag')
+		tolist=listlinks(tagfound)
 
-    print('downloading...')
-    start=time.time()
-    for single in range(dthread):# Starting a thread that processes each link.
-       try:
-             
-             t=threading.Thread(target=threader)
-             t.daemon=True
-             t.start()
-             time.sleep(0.005)
-            
-       except:
-                print('invalid URL ')
-    for link in linksTodownload: #Queue manger/builder - adds all links that are planned for downloading in a queue.
-    
-            q.put(link)
+		#print('Error finding wallpapers,it could be an empty page.')
 
-    print('#'*25)
+		for link in tolist: # simply making a list of all the links that are planned for downloading.
+			print ('link='+link)
+			if any(link in l for l in linksTodownload):
+				continue
+			else:
+				linksTodownload.append(link)
 
-    q.join()
-    print('\n \n \n ######## Done downloading, Enjoy :D ########')
-    print ("Downloading time was :",time.time()-start) # calculate the time spent downloading wallpapers.
-    workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
-    if openfolderafter=='True':
-        openfolder()
-    
+
+		if len(linksTodownload)==0: # in case there aren't any wallpapers to be downloaded(empty page for example).
+				print('nothing to download')
+
+	print('getting ready to download :'+str(len(linksTodownload))+' new wallpapers')
+
+
+	print('downloading...')
+	start=time.time()
+	for single in range(dthread):# Starting a thread that processes each link.
+		try:
+		 
+			t=threading.Thread(target=threader)
+			t.daemon=True
+			t.start()
+			time.sleep(0.005)
+		
+		except:
+			print('invalid URL ')
+	for link in linksTodownload: #Queue manger/builder - adds all links that are planned for downloading in a queue.
+
+			q.put(link)
+
+	print('#'*25)
+
+	q.join()
+	print('\n \n \n ######## Done downloading, Enjoy :D ########')
+	print ("Downloading time was :",time.time()-start) # calculate the time spent downloading wallpapers.
+	workingpath = (os.path.dirname(os.path.realpath(__file__))+'\\'+str(savedir).replace('/','\\'))
+	if openfolderafter=='True':
+		openfolder()
+
 

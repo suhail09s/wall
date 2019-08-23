@@ -1,0 +1,88 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <p><br><br>
+            <form action="" method="post">
+                <h4>Login Details</h4>
+                <div class="well">
+                    Username:
+        <p><input type='text' name='user' value="{{loaded_c['user']}}"></p>
+        Password:
+        <p><input type='text' name='password' value="{{loaded_c['password']}}"></p>
+    </div>
+    </p>
+
+
+    <p>
+        <h4>Search</h4>
+        <div class="well">
+            search mode :
+    <p><input type='text' name='mode' value="{{loaded_c['mode']}}"></p>
+    Search for :
+    <p><input type='text' name='search' value="{{loaded_c['search']}}"></p>
+    Top range :
+    <p><input type='text' name='toprange' value="{{loaded_c['toprange']}}"></p>
+    Sort by :
+    <p><input type='text' name='sorting' value="{{loaded_c['sorting']}}"></p>
+    desc or asc :
+    <p><input type='text' name='order' value="{{loaded_c['order']}}"></p>
+    favorite tag to search by :
+    <p><input type='text' name='favTag' value="{{loaded_c['favTag']}}"></p>
+    </div>
+    </p>
+
+    <p>
+        <h4>Catagory</h4>
+        <div class="well">
+            purity :
+    <p><input type='text' name='purity' value="{{loaded_c['purity']}}"></p>
+    categories (General=100,Anime=010,People=001):
+    <p><input type='text' name='cat' value="{{loaded_c['cat']}}"></p>
+    </div>
+    </p>
+
+    <p>
+        <h4>Pages</h4>
+        <div class="well">
+            Starting page :
+    <p><input type='text' name='startpage' value="{{loaded_c['startpage']}}"></p>
+    number of pages :
+    <p><input type='text' name='numpages' value="{{loaded_c['numpages']}}"></p>
+    </div>
+    </p>
+
+    <p>
+        <h4>Mics</h4>
+        <div class="well">
+            resolution of wallpapers :
+    <p><input type='text' name='resolution' value="{{loaded_c['resolution']}}"></p>
+    Ratio of wallpapers :
+    <p><input type='text' name='ratio' value="{{loaded_c['ratio']}}"></p>
+    Do you want to create a new folder (True or False) :
+    <p><input type='text' name='createfolder' value="{{loaded_c['createfolder']}}"></p>
+    Save directory :
+    <p><input type='text' name='savedir' value="{{loaded_c['savedir']}}"></p>
+    Number of threads :
+    <p><input type='text' name='threads' value="{{loaded_c['threads']}}"></p>
+    allow duplicates (True or False) :
+    <p><input type='text' name='allowduplicates' value="{{loaded_c['allowduplicates']}}"></p>
+    open folder after downloading (True or False) :
+    <p><input type='text' name='openfolderafter' value="{{loaded_c['openfolderafter']}}"></p>
+    </div>
+    </p>
+
+    {{ form.hidden_tag() }}
+    {{ form.submit() }}
+    
+        </form >
+        </div>
+        </p>
+</body>
+</html>
