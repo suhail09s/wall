@@ -100,7 +100,7 @@ def tagfind(soup,mode):
         if mode=='catalog':
             tag1=soup.find (id='thumbs')
             
-            tag2=tag1.findAll('li')
+            tag2=tag1.find('a')
             print("printing catalog "+tag1)
             return tag2
 
@@ -108,7 +108,7 @@ def tagfind(soup,mode):
             tag1=soup.find (id='wallpaper')
             print("printing tag "+tag1)
             return tag1
-        if mode=='csrf':
+        if mode=='csrf': 
             tag1=soup.find (id='login')
             tag2=tag1.findAll ('input')
             csrftag=str(tag2).split('"')[5]
